@@ -1,11 +1,13 @@
 {
   "id": "com.bassievalk.asus-presence",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "compatibility": ">=12.4.0",
   "sdk": 3,
   "support": "https://github.com/Bassievalk/asus-presence/issues",
   "brandColor": "#0B4AA2",
-  "connectivity": ["lan"],
+  "connectivity": [
+    "lan"
+  ],
   "platforms": [
     "local"
   ],
