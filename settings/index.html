@@ -1,0 +1,707 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>ASUS Presence</title>
+  <style>
+    :root {
+      --bg: #f3f5f8;
+      --panel: #ffffff;
+      --ink: #10243b;
+      --muted: #5f7288;
+      --brand: #0b4aa2;
+      --brand-soft: #dce8f9;
+      --ok: #117a46;
+      --ok-soft: #d4f2e3;
+      --warn: #a23a0b;
+      --warn-soft: #fde4d7;
+      --line: #d7e0ea;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      padding: 20px;
+      font: 14px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: var(--ink);
+      background: radial-gradient(circle at top right, #eef5ff 0, var(--bg) 45%);
+    }
+
+    .layout {
+      display: grid;
+      gap: 16px;
+      max-width: 1100px;
+      margin: 0 auto;
+    }
+
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 16px;
+      box-shadow: 0 10px 30px rgba(8, 32, 61, 0.06);
+    }
+
+    h1, h2 {
+      margin: 0 0 12px;
+      font-weight: 700;
+      letter-spacing: 0.2px;
+    }
+
+    h1 {
+      font-size: 20px;
+    }
+
+    h2 {
+      font-size: 16px;
+    }
+
+    .muted {
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .grid {
+      display: grid;
+      gap: 10px;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    }
+
+    label {
+      display: grid;
+      gap: 4px;
+      font-weight: 600;
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    input, select {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 8px 10px;
+      font: inherit;
+      color: var(--ink);
+      background: #fff;
+    }
+
+    .row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+    }
+
+    button {
+      border: 0;
+      border-radius: 8px;
+      padding: 8px 12px;
+      font: inherit;
+      font-weight: 600;
+      cursor: pointer;
+      background: #e6edf5;
+      color: var(--ink);
+    }
+
+    button.primary {
+      background: var(--brand);
+      color: #fff;
+    }
+
+    button.ghost {
+      background: transparent;
+      border: 1px solid var(--line);
+    }
+
+    button.warn {
+      background: #f8ddcf;
+      color: #832f0a;
+    }
+
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .summary {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    .pill {
+      padding: 6px 10px;
+      border-radius: 999px;
+      font-weight: 700;
+      font-size: 12px;
+    }
+
+    .pill.home {
+      background: var(--ok-soft);
+      color: var(--ok);
+    }
+
+    .pill.away {
+      background: var(--warn-soft);
+      color: var(--warn);
+    }
+
+    .people {
+      display: grid;
+      gap: 12px;
+    }
+
+    .person {
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 12px;
+      display: grid;
+      gap: 10px;
+      background: #fcfdff;
+    }
+
+    .person-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .devices {
+      display: grid;
+      gap: 6px;
+    }
+
+    .device {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 8px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+    }
+
+    .device-main {
+      display: grid;
+      gap: 2px;
+    }
+
+    .device-name {
+      font-weight: 700;
+    }
+
+    .device-mac {
+      color: var(--muted);
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 12px;
+    }
+
+    .status {
+      padding: 3px 8px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 700;
+    }
+
+    .status.home {
+      background: var(--ok-soft);
+      color: var(--ok);
+    }
+
+    .status.away {
+      background: var(--warn-soft);
+      color: var(--warn);
+    }
+
+    .status.off {
+      background: #eceff4;
+      color: #5b6470;
+    }
+  </style>
+</head>
+<body>
+  <div class="layout">
+    <section class="panel">
+      <h1>ASUS Presence</h1>
+      <p class="muted">Track who is home based on ASUS router clients. Timeline updates and flow cards are included.</p>
+
+      <div class="summary">
+        <span class="pill home" id="homeCount">Home: 0</span>
+        <span class="pill away" id="awayCount">Away: 0</span>
+        <span class="muted" id="pollInfo">No polling data yet.</span>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>Router Configuration</h2>
+      <div class="grid">
+        <label>
+          Router base URL
+          <input id="baseUrl" placeholder="http://192.168.1.1" />
+        </label>
+        <label>
+          Client endpoint
+          <input id="clientsEndpoint" placeholder="/appGet.cgi?hook=get_clientlist()" />
+        </label>
+        <label>
+          Poll interval (seconds)
+          <input id="pollIntervalSeconds" type="number" min="15" max="3600" />
+        </label>
+        <label>
+          Request timeout (ms)
+          <input id="timeoutMs" type="number" min="2000" max="60000" />
+        </label>
+        <label>
+          Auth mode
+          <select id="authMode">
+            <option value="none">No auth</option>
+            <option value="basic">Basic auth</option>
+            <option value="bearer">Bearer token</option>
+          </select>
+        </label>
+        <label>
+          Username
+          <input id="username" />
+        </label>
+        <label>
+          Password
+          <input id="password" type="password" />
+        </label>
+        <label>
+          Bearer token
+          <input id="bearerToken" />
+        </label>
+        <label>
+          Custom header name
+          <input id="customHeaderName" placeholder="Cookie" />
+        </label>
+        <label>
+          Custom header value
+          <input id="customHeaderValue" placeholder="asus_token=..." />
+        </label>
+      </div>
+
+      <div class="row" style="margin-top: 10px;">
+        <label class="row" style="font-size: 13px; color: var(--ink);">
+          <input id="allowInsecureTls" type="checkbox" />
+          Allow insecure TLS (self-signed certificate)
+        </label>
+        <label class="row" style="font-size: 13px; color: var(--ink);">
+          <input id="timelineEnabled" type="checkbox" />
+          Write arrivals/departures to Homey Timeline
+        </label>
+      </div>
+
+      <div class="row" style="margin-top: 12px;">
+        <button class="primary" id="saveConfig">Save config</button>
+        <button class="ghost" id="refreshNow">Refresh now</button>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="row" style="justify-content: space-between;">
+        <h2 style="margin: 0;">People & Devices</h2>
+        <button class="primary" id="addPerson">Add person</button>
+      </div>
+      <div class="people" id="people"></div>
+    </section>
+  </div>
+
+  <script type="text/javascript" src="/homey.js" data-origin="settings"></script>
+  <script>
+    let overview = null;
+    let busy = false;
+
+    function setBusy(nextBusy) {
+      busy = nextBusy;
+      document.querySelectorAll('button').forEach((button) => {
+        button.disabled = busy;
+      });
+    }
+
+    function homeyApi(method, uri, body) {
+      return new Promise((resolve, reject) => {
+        const callback = (error, result) => {
+          if (error) {
+            reject(error);
+            return;
+          }
+          resolve(result);
+        };
+
+        if (method === 'GET' || method === 'DELETE') {
+          Homey.api(method, uri, callback);
+          return;
+        }
+
+        Homey.api(method, uri, body || {}, callback);
+      });
+    }
+
+    function updateSummary() {
+      const summary = overview?.summary || { homeCount: 0, awayCount: 0 };
+      document.getElementById('homeCount').textContent = `Home: ${summary.homeCount}`;
+      document.getElementById('awayCount').textContent = `Away: ${summary.awayCount}`;
+
+      const poll = overview?.poll || {};
+      const pollText = poll.lastPollError
+        ? `Last poll error: ${poll.lastPollError}`
+        : poll.lastPollAt
+          ? `Last poll: ${new Date(poll.lastPollAt).toLocaleString()}`
+          : 'No polling data yet.';
+
+      document.getElementById('pollInfo').textContent = pollText;
+    }
+
+    function renderPeople() {
+      const container = document.getElementById('people');
+      container.innerHTML = '';
+
+      const people = overview?.people || [];
+      if (!people.length) {
+        container.innerHTML = '<p class="muted">No people yet. Add someone and then add one or more device MAC addresses.</p>';
+        return;
+      }
+
+      for (const person of people) {
+        const card = document.createElement('div');
+        card.className = 'person';
+
+        const statusClass = person.isHome ? 'home' : 'away';
+        const statusText = person.isHome ? 'Home' : 'Away';
+
+        const personHead = document.createElement('div');
+        personHead.className = 'person-head';
+        personHead.innerHTML = `
+          <div>
+            <strong>${escapeHtml(person.name)}</strong>
+            <span class="status ${statusClass}" style="margin-left: 8px;">${statusText}</span>
+            <div class="muted">${person.enabledDeviceCount} tracked device(s)</div>
+          </div>
+          <div class="row">
+            <button data-action="rename-person" data-person-id="${person.id}">Rename</button>
+            <button class="ghost" data-action="add-device" data-person-id="${person.id}">Add device</button>
+            <button class="warn" data-action="delete-person" data-person-id="${person.id}">Delete</button>
+          </div>
+        `;
+
+        card.appendChild(personHead);
+
+        const devices = document.createElement('div');
+        devices.className = 'devices';
+
+        if (!person.devices.length) {
+          devices.innerHTML = '<div class="muted">No devices linked yet.</div>';
+        } else {
+          for (const device of person.devices) {
+            const online = person.homeDeviceIds.includes(device.id);
+            const deviceStatusClass = !device.enabled ? 'off' : (online ? 'home' : 'away');
+            const deviceStatusText = !device.enabled ? 'Disabled' : (online ? 'Online' : 'Offline');
+
+            const row = document.createElement('div');
+            row.className = 'device';
+            row.innerHTML = `
+              <div class="device-main">
+                <span class="device-name">${escapeHtml(device.name)}</span>
+                <span class="device-mac">${escapeHtml(device.mac)}</span>
+              </div>
+              <div class="row">
+                <span class="status ${deviceStatusClass}">${deviceStatusText}</span>
+                <button class="ghost" data-action="edit-device" data-person-id="${person.id}" data-device-id="${device.id}">Edit</button>
+                <button data-action="toggle-device" data-person-id="${person.id}" data-device-id="${device.id}">
+                  ${device.enabled ? 'Disable' : 'Enable'}
+                </button>
+                <button class="warn" data-action="delete-device" data-person-id="${person.id}" data-device-id="${device.id}">Delete</button>
+              </div>
+            `;
+
+            devices.appendChild(row);
+          }
+        }
+
+        card.appendChild(devices);
+        container.appendChild(card);
+      }
+    }
+
+    function fillConfig() {
+      const cfg = overview?.router || {};
+      document.getElementById('baseUrl').value = cfg.baseUrl || '';
+      document.getElementById('clientsEndpoint').value = cfg.clientsEndpoint || '';
+      document.getElementById('pollIntervalSeconds').value = cfg.pollIntervalSeconds || 30;
+      document.getElementById('timeoutMs').value = cfg.timeoutMs || 10000;
+      document.getElementById('authMode').value = cfg.authMode || 'none';
+      document.getElementById('username').value = cfg.username || '';
+      document.getElementById('password').value = cfg.password || '';
+      document.getElementById('bearerToken').value = cfg.bearerToken || '';
+      document.getElementById('customHeaderName').value = cfg.customHeaderName || '';
+      document.getElementById('customHeaderValue').value = cfg.customHeaderValue || '';
+      document.getElementById('allowInsecureTls').checked = Boolean(cfg.allowInsecureTls);
+      document.getElementById('timelineEnabled').checked = cfg.timelineEnabled !== false;
+    }
+
+    function render() {
+      updateSummary();
+      renderPeople();
+      fillConfig();
+    }
+
+    function escapeHtml(value) {
+      return String(value)
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;')
+        .replaceAll("'", '&#039;');
+    }
+
+    async function reloadOverview() {
+      overview = await homeyApi('GET', '/overview');
+      render();
+    }
+
+    async function saveConfig() {
+      setBusy(true);
+      try {
+        overview = await homeyApi('PUT', '/config', {
+          baseUrl: document.getElementById('baseUrl').value,
+          clientsEndpoint: document.getElementById('clientsEndpoint').value,
+          pollIntervalSeconds: Number(document.getElementById('pollIntervalSeconds').value || 30),
+          timeoutMs: Number(document.getElementById('timeoutMs').value || 10000),
+          authMode: document.getElementById('authMode').value,
+          username: document.getElementById('username').value,
+          password: document.getElementById('password').value,
+          bearerToken: document.getElementById('bearerToken').value,
+          customHeaderName: document.getElementById('customHeaderName').value,
+          customHeaderValue: document.getElementById('customHeaderValue').value,
+          allowInsecureTls: document.getElementById('allowInsecureTls').checked,
+          timelineEnabled: document.getElementById('timelineEnabled').checked,
+        });
+        render();
+      } catch (error) {
+        await Homey.alert(error.message || String(error));
+      } finally {
+        setBusy(false);
+      }
+    }
+
+    async function refreshNow() {
+      setBusy(true);
+      try {
+        overview = await homeyApi('POST', '/refresh', {});
+        render();
+      } catch (error) {
+        await Homey.alert(error.message || String(error));
+      } finally {
+        setBusy(false);
+      }
+    }
+
+    async function addPerson() {
+      const name = prompt('Person name');
+      if (!name) {
+        return;
+      }
+
+      setBusy(true);
+      try {
+        overview = await homeyApi('POST', '/person', { name });
+        render();
+      } catch (error) {
+        await Homey.alert(error.message || String(error));
+      } finally {
+        setBusy(false);
+      }
+    }
+
+    async function renamePerson(personId) {
+      const person = (overview.people || []).find((item) => item.id === personId);
+      if (!person) {
+        return;
+      }
+
+      const name = prompt('New name', person.name);
+      if (!name) {
+        return;
+      }
+
+      setBusy(true);
+      try {
+        overview = await homeyApi('PUT', '/person', { id: personId, name });
+        render();
+      } catch (error) {
+        await Homey.alert(error.message || String(error));
+      } finally {
+        setBusy(false);
+      }
+    }
+
+    async function deletePerson(personId) {
+      const ok = confirm('Delete this person and all linked devices?');
+      if (!ok) {
+        return;
+      }
+
+      setBusy(true);
+      try {
+        overview = await homeyApi('DELETE', `/person?id=${encodeURIComponent(personId)}`);
+        render();
+      } catch (error) {
+        await Homey.alert(error.message || String(error));
+      } finally {
+        setBusy(false);
+      }
+    }
+
+    async function addDevice(personId) {
+      const name = prompt('Device name (optional)');
+      const mac = prompt('MAC address (example: AA:BB:CC:DD:EE:FF)');
+
+      if (!mac) {
+        return;
+      }
+
+      setBusy(true);
+      try {
+        overview = await homeyApi('POST', '/device', { personId, name: name || '', mac });
+        render();
+      } catch (error) {
+        await Homey.alert(error.message || String(error));
+      } finally {
+        setBusy(false);
+      }
+    }
+
+    async function editDevice(personId, deviceId) {
+      const person = (overview.people || []).find((item) => item.id === personId);
+      const device = person?.devices?.find((item) => item.id === deviceId);
+      if (!device) {
+        return;
+      }
+
+      const name = prompt('Device name', device.name);
+      if (!name) {
+        return;
+      }
+
+      const mac = prompt('MAC address', device.mac);
+      if (!mac) {
+        return;
+      }
+
+      setBusy(true);
+      try {
+        overview = await homeyApi('PUT', '/device', {
+          personId,
+          id: deviceId,
+          name,
+          mac,
+          enabled: device.enabled,
+        });
+        render();
+      } catch (error) {
+        await Homey.alert(error.message || String(error));
+      } finally {
+        setBusy(false);
+      }
+    }
+
+    async function toggleDevice(personId, deviceId) {
+      const person = (overview.people || []).find((item) => item.id === personId);
+      const device = person?.devices?.find((item) => item.id === deviceId);
+      if (!device) {
+        return;
+      }
+
+      setBusy(true);
+      try {
+        overview = await homeyApi('PUT', '/device', {
+          personId,
+          id: deviceId,
+          enabled: !device.enabled,
+        });
+        render();
+      } catch (error) {
+        await Homey.alert(error.message || String(error));
+      } finally {
+        setBusy(false);
+      }
+    }
+
+    async function deleteDevice(personId, deviceId) {
+      const ok = confirm('Delete this device?');
+      if (!ok) {
+        return;
+      }
+
+      setBusy(true);
+      try {
+        overview = await homeyApi('DELETE', `/device?personId=${encodeURIComponent(personId)}&id=${encodeURIComponent(deviceId)}`);
+        render();
+      } catch (error) {
+        await Homey.alert(error.message || String(error));
+      } finally {
+        setBusy(false);
+      }
+    }
+
+    function attachHandlers() {
+      document.getElementById('saveConfig').addEventListener('click', saveConfig);
+      document.getElementById('refreshNow').addEventListener('click', refreshNow);
+      document.getElementById('addPerson').addEventListener('click', addPerson);
+
+      document.getElementById('people').addEventListener('click', (event) => {
+        const button = event.target.closest('button[data-action]');
+        if (!button) {
+          return;
+        }
+
+        const action = button.dataset.action;
+        const personId = button.dataset.personId;
+        const deviceId = button.dataset.deviceId;
+
+        if (action === 'rename-person') {
+          renamePerson(personId);
+        } else if (action === 'delete-person') {
+          deletePerson(personId);
+        } else if (action === 'add-device') {
+          addDevice(personId);
+        } else if (action === 'edit-device') {
+          editDevice(personId, deviceId);
+        } else if (action === 'toggle-device') {
+          toggleDevice(personId, deviceId);
+        } else if (action === 'delete-device') {
+          deleteDevice(personId, deviceId);
+        }
+      });
+    }
+
+    async function init() {
+      attachHandlers();
+      await reloadOverview();
+
+      Homey.on('presence_update', (payload) => {
+        overview = payload;
+        render();
+      });
+
+      Homey.ready();
+    }
+
+    function onHomeyReady(homey) {
+      window.Homey = homey;
+      init().catch(async (error) => {
+        await Homey.alert(error.message || String(error));
+        Homey.ready();
+      });
+    }
+  </script>
+</body>
+</html>

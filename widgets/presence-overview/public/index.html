@@ -1,0 +1,186 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>ASUS Presence Overview</title>
+  <style>
+    :root {
+      --ink: #0f2136;
+      --muted: #5f748c;
+      --panel: #ffffff;
+      --line: #dce4ee;
+      --home-bg: #d8f6e8;
+      --home-fg: #0f7a45;
+      --away-bg: #fee6da;
+      --away-fg: #a2410f;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      font: 14px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: var(--ink);
+      background: #f6f9fc;
+    }
+
+    body {
+      padding: 10px;
+    }
+
+    .card {
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background: var(--panel);
+      overflow: hidden;
+    }
+
+    .head {
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--line);
+      background: linear-gradient(135deg, #edf4ff, #ffffff);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .title {
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 0.3px;
+    }
+
+    .meta {
+      font-size: 11px;
+      color: var(--muted);
+    }
+
+    .list {
+      display: grid;
+      gap: 6px;
+      padding: 10px;
+    }
+
+    .row {
+      border: 1px solid var(--line);
+      border-radius: 9px;
+      padding: 7px 9px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+      background: #fff;
+    }
+
+    .name {
+      font-weight: 700;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .status {
+      font-size: 11px;
+      font-weight: 700;
+      border-radius: 999px;
+      padding: 3px 8px;
+    }
+
+    .status.home {
+      background: var(--home-bg);
+      color: var(--home-fg);
+    }
+
+    .status.away {
+      background: var(--away-bg);
+      color: var(--away-fg);
+    }
+
+    .empty {
+      padding: 14px;
+      text-align: center;
+      color: var(--muted);
+      font-size: 12px;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="head">
+      <div class="title">ASUS Presence</div>
+      <div class="meta" id="summary">Loading...</div>
+    </div>
+    <div class="list" id="list"></div>
+  </div>
+
+  <script type="text/javascript" src="/homey.js" data-origin="widget"></script>
+  <script type="text/javascript">
+    let state = null;
+
+    async function fetchStatus() {
+      state = await Homey.api('GET', '/status');
+      render();
+    }
+
+    function render() {
+      const list = document.getElementById('list');
+      const summary = document.getElementById('summary');
+      const people = state?.people || [];
+      const homeCount = state?.summary?.homeCount || 0;
+      const awayCount = state?.summary?.awayCount || 0;
+
+      summary.textContent = `${homeCount} home • ${awayCount} away`;
+      list.innerHTML = '';
+
+      if (!people.length) {
+        list.innerHTML = '<div class="empty">No people configured yet.</div>';
+        return;
+      }
+
+      for (const person of people) {
+        const row = document.createElement('div');
+        row.className = 'row';
+        row.innerHTML = `
+          <span class="name">${escapeHtml(person.name)}</span>
+          <span class="status ${person.isHome ? 'home' : 'away'}">${person.isHome ? 'Home' : 'Away'}</span>
+        `;
+        list.appendChild(row);
+      }
+    }
+
+    function escapeHtml(value) {
+      return String(value)
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;')
+        .replaceAll("'", '&#039;');
+    }
+
+    function onHomeyReady(HomeyInstance) {
+      window.Homey = HomeyInstance;
+
+      fetchStatus()
+        .then(() => {
+          Homey.on('presence_update', (payload) => {
+            state = payload;
+            render();
+          });
+
+          Homey.ready({ height: 120 });
+        })
+        .catch(async (error) => {
+          state = { people: [], summary: { homeCount: 0, awayCount: 0 } };
+          render();
+          await Homey.alert(error.message || String(error));
+          Homey.ready({ height: 120 });
+        });
+    }
+  </script>
+</body>
+</html>

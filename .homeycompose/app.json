@@ -27,5 +27,71 @@
   "author": {
     "name": "Bas Valk",
     "email": "basvalk03@gmail.com"
-  }
+  },
+  "flow": {
+    "triggers": [
+      {
+        "id": "person_came_home",
+        "title": {
+          "en": "A monitored person came home"
+        },
+        "tokens": [
+          {
+            "name": "person",
+            "type": "string",
+            "title": {
+              "en": "Person"
+            }
+          },
+          {
+            "name": "devices",
+            "type": "string",
+            "title": {
+              "en": "Online devices"
+            }
+          }
+        ]
+      },
+      {
+        "id": "person_left_home",
+        "title": {
+          "en": "A monitored person left home"
+        },
+        "tokens": [
+          {
+            "name": "person",
+            "type": "string",
+            "title": {
+              "en": "Person"
+            }
+          }
+        ]
+      }
+    ],
+    "conditions": [
+      {
+        "id": "person_is_home",
+        "title": {
+          "en": "[[person]] is home"
+        },
+        "args": [
+          {
+            "name": "person",
+            "type": "autocomplete",
+            "title": {
+              "en": "Person"
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "widgets": [
+    {
+      "id": "presence-overview",
+      "name": {
+        "en": "ASUS Presence Overview"
+      }
+    }
+  ]
 }

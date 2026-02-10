@@ -1,3 +1,42 @@
 {
-  "_comment": "This file is generated. Please edit .homeycompose/app.json instead."
+  "_comment": "This file is generated. Please edit .homeycompose/app.json instead.",
+  "id": "com.bassievalk.asus-presence",
+  "version": "1.0.0",
+  "compatibility": ">=12.4.0",
+  "sdk": 3,
+  "support": "https://github.com/Bassievalk/asus-presence/issues",
+  "brandColor": "#0B4AA2",
+  "connectivity": [
+    "lan"
+  ],
+  "platforms": [
+    "local"
+  ],
+  "name": {
+    "en": "Asus presence"
+  },
+  "description": {
+    "en": "View residents that are home/away using ASUS routers"
+  },
+  "category": [
+    "localization"
+  ],
+  "permissions": [],
+  "images": {
+    "small": "/assets/images/small.png",
+    "large": "/assets/images/large.png",
+    "xlarge": "/assets/images/xlarge.png"
+  },
+  "author": {
+    "name": "Bas Valk",
+    "email": "basvalk03@gmail.com"
+  },
+  "widgets": [
+    {
+      "id": "presence-overview",
+      "name": {
+        "en": "ASUS Presence Overview"
+      }
+    }
+  ]
 }
