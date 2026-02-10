@@ -4,5 +4,8 @@
   },
   "2.0.0": {
     "en": "Basic version"
+  },
+  "2.1.0": {
+    "en": "Added a preview."
   }
 }
