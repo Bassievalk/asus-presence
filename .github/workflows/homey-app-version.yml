@@ -4,28 +4,23 @@ on:
     inputs:
       version:
         type: choice
-        description: Version
         required: true
         default: patch
-        options:
-          - major
-          - minor
-          - patch
+        options: [major, minor, patch]
       changelog:
         type: string
-        description: Changelog
         required: true
 
-# Needed in order to push the commit and create a release
 permissions:
   contents: write
 
 jobs:
   main:
-    name: Update Homey App Version
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Update Homey App Version
         uses: athombv/github-action-homey-app-version@master
@@ -34,17 +29,21 @@ jobs:
           version: ${{ inputs.version }}
           changelog: ${{ inputs.changelog }}
 
-      - name: Commit & Push
+      - name: Commit, tag & push
         run: |
           git config --local user.name "github-actions[bot]"
           git config --local user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
           git add -A
-          git commit -m "Update Homey App Version to v${{ steps.update_app_version.outputs.version }}"
+          git commit -m "Release v${{ steps.update_app_version.outputs.version }}"
           git tag "v${{ steps.update_app_version.outputs.version }}"
 
-          git push origin HEAD --tags
-          gh release create "v${{ steps.update_app_version.outputs.version }}" -t "v${{ steps.update_app_version.outputs.version }}" --notes "" --generate-notes
+          # push naar dezelfde branch die je workflow start
+          git push origin "HEAD:${GITHUB_REF_NAME}" --tags
+
+          # release notes: kies OF generate-notes, OF eigen notes
+          gh release create "v${{ steps.update_app_version.outputs.version }}" \
+            -t "v${{ steps.update_app_version.outputs.version }}" \
+            --notes "${{ inputs.changelog }}"
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_TOKEN: ${{ github.token }}
