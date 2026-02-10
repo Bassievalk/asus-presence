@@ -2,7 +2,7 @@
 <html>
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
   <title>ASUS Presence Overview</title>
   <style>
     :root {
@@ -10,14 +10,36 @@
       --muted: #5f748c;
       --panel: #ffffff;
       --line: #dce4ee;
+      --head-bg: linear-gradient(135deg, #edf4ff, #ffffff);
       --home-bg: #d8f6e8;
       --home-fg: #0f7a45;
       --away-bg: #fee6da;
       --away-fg: #a2410f;
+      --stale-bg: #fff1d6;
+      --stale-fg: #8a5a00;
+      --chip: #ecf1f7;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --ink: #e6eef8;
+        --muted: #9cb0c6;
+        --panel: #121c28;
+        --line: #2a3a4f;
+        --head-bg: linear-gradient(135deg, #1b2a3d, #121c28);
+        --home-bg: #1d4833;
+        --home-fg: #9ae8bf;
+        --away-bg: #4a2a1d;
+        --away-fg: #ffbf9e;
+        --stale-bg: #4a3a1f;
+        --stale-fg: #ffd58f;
+        --chip: #1e2b3c;
+      }
     }
 
     * {
       box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
     }
 
     html, body {
@@ -25,7 +47,9 @@
       padding: 0;
       font: 14px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       color: var(--ink);
-      background: #f6f9fc;
+      background: transparent;
+      overflow: hidden;
+      height: 100%;
     }
 
     body {
@@ -37,12 +61,15 @@
       border-radius: 14px;
       background: var(--panel);
       overflow: hidden;
+      height: calc(100vh - 20px);
+      display: flex;
+      flex-direction: column;
     }
 
     .head {
       padding: 10px 12px;
       border-bottom: 1px solid var(--line);
-      background: linear-gradient(135deg, #edf4ff, #ffffff);
+      background: var(--head-bg);
       display: flex;
       justify-content: space-between;
       align-items: center;
@@ -58,26 +85,32 @@
     .meta {
       font-size: 11px;
       color: var(--muted);
+      white-space: nowrap;
     }
 
     .list {
       display: grid;
       gap: 6px;
       padding: 10px;
+      overflow-y: auto;
+      overflow-x: hidden;
+      overscroll-behavior: contain;
+      flex: 1;
     }
 
     .row {
       border: 1px solid var(--line);
       border-radius: 9px;
-      padding: 7px 9px;
+      padding: 8px 9px;
       display: grid;
       grid-template-columns: 1fr auto;
       gap: 4px 8px;
       align-items: start;
-      background: #fff;
+      background: var(--panel);
+      cursor: pointer;
     }
 
-    .name {
+    .row-title {
       font-weight: 700;
       overflow: hidden;
       text-overflow: ellipsis;
@@ -107,6 +140,60 @@
       color: var(--away-fg);
     }
 
+    .devices {
+      grid-column: 1 / span 2;
+      display: grid;
+      gap: 6px;
+      margin-top: 4px;
+    }
+
+    .device {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 6px 7px;
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+      font-size: 11px;
+      background: var(--chip);
+    }
+
+    .device-name {
+      font-weight: 700;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      max-width: 180px;
+    }
+
+    .device-state {
+      font-weight: 700;
+      border-radius: 999px;
+      padding: 2px 7px;
+      white-space: nowrap;
+    }
+
+    .device-state.online {
+      background: var(--home-bg);
+      color: var(--home-fg);
+    }
+
+    .device-state.offline {
+      background: var(--away-bg);
+      color: var(--away-fg);
+    }
+
+    .device-state.stale {
+      background: var(--stale-bg);
+      color: var(--stale-fg);
+    }
+
+    .footer {
+      padding: 0 10px 10px;
+      color: var(--muted);
+      font-size: 11px;
+    }
+
     .empty {
       padding: 14px;
       text-align: center;
@@ -122,60 +209,28 @@
       <div class="meta" id="summary">Loading...</div>
     </div>
     <div class="list" id="list"></div>
+    <div class="footer" id="footer" hidden></div>
   </div>
 
   <script type="text/javascript" src="/homey.js" data-origin="widget"></script>
   <script type="text/javascript">
     let state = null;
     let homeyReadyCalled = false;
+    const expandedPeople = new Set();
+    const FIXED_HEIGHT = 320;
+
+    function lockGestures() {
+      document.addEventListener('gesturestart', (event) => event.preventDefault());
+      document.addEventListener('wheel', (event) => {
+        if (event.ctrlKey) {
+          event.preventDefault();
+        }
+      }, { passive: false });
+    }
 
     async function fetchStatus() {
       state = await Homey.api('GET', '/status');
       render();
-    }
-
-    function updateWidgetHeight() {
-      const people = state?.people || [];
-      const target = Math.min(620, Math.max(180, 84 + people.length * 56));
-
-      if (homeyReadyCalled) {
-        Homey.setHeight(target).catch(() => {});
-      }
-    }
-
-    function render() {
-      const list = document.getElementById('list');
-      const summary = document.getElementById('summary');
-      const people = state?.people || [];
-      const homeCount = state?.summary?.homeCount || 0;
-      const awayCount = state?.summary?.awayCount || 0;
-
-      summary.textContent = `${homeCount} home - ${awayCount} away`;
-      list.innerHTML = '';
-
-      if (!people.length) {
-        list.innerHTML = '<div class="empty">No people configured yet.</div>';
-        updateWidgetHeight();
-        return;
-      }
-
-      for (const person of people) {
-        const row = document.createElement('div');
-        row.className = 'row';
-        const activity = formatRelativeTime(person.lastActivityAt);
-        const staleText = Array.isArray(person.staleDeviceNames) && person.staleDeviceNames.length
-          ? ` | stale: ${person.staleDeviceNames.join(', ')}`
-          : '';
-
-        row.innerHTML = `
-          <span class="name">${escapeHtml(person.name)}</span>
-          <span class="status ${person.isHome ? 'home' : 'away'}">${person.isHome ? 'Home' : 'Away'}</span>
-          <span class="row-meta">Last activity: ${activity}${escapeHtml(staleText)}</span>
-        `;
-        list.appendChild(row);
-      }
-
-      updateWidgetHeight();
     }
 
     function formatRelativeTime(iso) {
@@ -215,8 +270,89 @@
         .replaceAll("'", '&#039;');
     }
 
+    function renderDevices(person) {
+      const devices = Array.isArray(person.devices) ? person.devices : [];
+      if (!devices.length) {
+        return '<div class="row-meta">No devices linked.</div>';
+      }
+
+      const homeIds = new Set(person.homeDeviceIds || []);
+      const staleIds = new Set(person.staleDeviceIds || []);
+
+      return `
+        <div class="devices">
+          ${devices.map((device) => {
+            let stateText = 'offline';
+            let stateClass = 'offline';
+            if (homeIds.has(device.id)) {
+              stateText = 'online';
+              stateClass = 'online';
+            } else if (staleIds.has(device.id)) {
+              stateText = 'stale';
+              stateClass = 'stale';
+            }
+
+            return `
+              <div class="device">
+                <span class="device-name">${escapeHtml(device.name)}</span>
+                <span class="device-state ${stateClass}">${stateText}</span>
+              </div>
+            `;
+          }).join('')}
+        </div>
+      `;
+    }
+
+    function render() {
+      const list = document.getElementById('list');
+      const summary = document.getElementById('summary');
+      const footer = document.getElementById('footer');
+      const people = state?.people || [];
+      const homeCount = state?.summary?.homeCount || 0;
+      const awayCount = state?.summary?.awayCount || 0;
+
+      summary.textContent = `${homeCount} home - ${awayCount} away`;
+      list.innerHTML = '';
+
+      if (!people.length) {
+        footer.hidden = true;
+        list.innerHTML = '<div class="empty">No people configured yet.</div>';
+        return;
+      }
+
+      footer.hidden = true;
+
+      for (const person of people) {
+        const expanded = expandedPeople.has(person.id);
+        const row = document.createElement('div');
+        row.className = 'row';
+        row.dataset.personId = person.id;
+        const activity = formatRelativeTime(person.lastActivityAt);
+        const staleText = Array.isArray(person.staleDeviceNames) && person.staleDeviceNames.length
+          ? ` | stale: ${person.staleDeviceNames.join(', ')}`
+          : '';
+
+        row.innerHTML = `
+          <span class="row-title">${escapeHtml(person.name)}</span>
+          <span class="status ${person.isHome ? 'home' : 'away'}">${person.isHome ? 'Home' : 'Away'}</span>
+          <span class="row-meta">Last activity: ${activity}${escapeHtml(staleText)}</span>
+          ${expanded ? renderDevices(person) : ''}
+        `;
+        row.addEventListener('click', () => {
+          if (expandedPeople.has(person.id)) {
+            expandedPeople.delete(person.id);
+          } else {
+            expandedPeople.add(person.id);
+          }
+          render();
+        });
+        list.appendChild(row);
+      }
+    }
+
     function onHomeyReady(HomeyInstance) {
       window.Homey = HomeyInstance;
+      lockGestures();
 
       fetchStatus()
         .then(() => {
@@ -226,14 +362,16 @@
           });
 
           homeyReadyCalled = true;
-          Homey.ready({ height: 220 });
+          Homey.ready({ height: FIXED_HEIGHT });
+          Homey.setHeight(FIXED_HEIGHT).catch(() => {});
         })
         .catch(async (error) => {
           state = { people: [], summary: { homeCount: 0, awayCount: 0 } };
           render();
           await Homey.alert(error.message || String(error));
           homeyReadyCalled = true;
-          Homey.ready({ height: 220 });
+          Homey.ready({ height: FIXED_HEIGHT });
+          Homey.setHeight(FIXED_HEIGHT).catch(() => {});
         });
     }
   </script>
