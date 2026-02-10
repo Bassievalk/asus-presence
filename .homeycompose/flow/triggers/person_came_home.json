@@ -2,6 +2,18 @@
   "title": {
     "en": "A monitored person came home"
   },
+  "titleFormatted": {
+    "en": "[[person]] came home"
+  },
+  "args": [
+    {
+      "name": "person",
+      "type": "autocomplete",
+      "title": {
+        "en": "Person"
+      }
+    }
+  ],
   "tokens": [
     {
       "name": "person",

@@ -75,6 +75,18 @@
         "title": {
           "en": "A monitored person came home"
         },
+        "titleFormatted": {
+          "en": "[[person]] came home"
+        },
+        "args": [
+          {
+            "name": "person",
+            "type": "autocomplete",
+            "title": {
+              "en": "Person"
+            }
+          }
+        ],
         "tokens": [
           {
             "name": "person",
@@ -97,6 +109,18 @@
         "title": {
           "en": "A monitored person left home"
         },
+        "titleFormatted": {
+          "en": "[[person]] left home"
+        },
+        "args": [
+          {
+            "name": "person",
+            "type": "autocomplete",
+            "title": {
+              "en": "Person"
+            }
+          }
+        ],
         "tokens": [
           {
             "name": "person",
@@ -112,6 +136,9 @@
     "conditions": [
       {
         "title": {
+          "en": "[[person]] is home"
+        },
+        "titleFormatted": {
           "en": "[[person]] is home"
         },
         "args": [
@@ -132,7 +159,7 @@
       "name": {
         "en": "ASUS Presence Overview"
       },
-      "height": 188,
+      "height": 320,
       "settings": [],
       "api": {
         "getStatus": {

@@ -91,6 +91,16 @@ interface HttpResponse {
 
 interface FlowTriggerCard {
   trigger(tokens?: Record<string, unknown>, state?: Record<string, unknown>): Promise<unknown>;
+  registerArgumentAutocompleteListener(
+    name: string,
+    listener: (query: string) => Promise<Array<{ name: string; id: string }>>,
+  ): FlowTriggerCard;
+  registerRunListener(
+    listener: (
+      args: { person?: string | { id?: string } },
+      state: { personId?: string },
+    ) => Promise<boolean>,
+  ): FlowTriggerCard;
 }
 
 interface FlowConditionCard {
@@ -435,26 +445,24 @@ module.exports = class AsusPresenceApp extends Homey.App {
   }
 
   private registerFlowCards() {
-    this.triggerPersonCameHome = this.homey.flow.getTriggerCard('person_came_home') as unknown as FlowTriggerCard;
-    this.triggerPersonLeftHome = this.homey.flow.getTriggerCard('person_left_home') as unknown as FlowTriggerCard;
+    const cameHomeCard = this.homey.flow.getTriggerCard('person_came_home') as unknown as FlowTriggerCard;
+    const leftHomeCard = this.homey.flow.getTriggerCard('person_left_home') as unknown as FlowTriggerCard;
+    this.triggerPersonCameHome = cameHomeCard;
+    this.triggerPersonLeftHome = leftHomeCard;
+
+    cameHomeCard.registerArgumentAutocompleteListener('person', async (query: string) => this.getPersonAutocompleteResults(query));
+    leftHomeCard.registerArgumentAutocompleteListener('person', async (query: string) => this.getPersonAutocompleteResults(query));
+
+    cameHomeCard.registerRunListener(async (args, state) => this.shouldRunPersonFilteredTrigger(args?.person, state?.personId));
+    leftHomeCard.registerRunListener(async (args, state) => this.shouldRunPersonFilteredTrigger(args?.person, state?.personId));
 
     const conditionCard = this.homey.flow.getConditionCard('person_is_home') as unknown as FlowConditionCard;
     this.conditionPersonIsHome = conditionCard;
 
-    conditionCard.registerArgumentAutocompleteListener('person', async (query: string) => {
-      const normalizedQuery = (query || '').toLowerCase();
-
-      return this.getPeople()
-        .filter((person) => person.name.toLowerCase().includes(normalizedQuery))
-        .map((person) => ({
-          name: person.name,
-          id: person.id,
-        }));
-    });
+    conditionCard.registerArgumentAutocompleteListener('person', async (query: string) => this.getPersonAutocompleteResults(query));
 
     conditionCard.registerRunListener(async (args: { person?: string | { id?: string } }) => {
-      const personArg = args?.person;
-      const personId = typeof personArg === 'string' ? personArg : personArg?.id;
+      const personId = this.getFlowPersonId(args?.person);
 
       if (!personId) {
         return false;
@@ -462,6 +470,44 @@ module.exports = class AsusPresenceApp extends Homey.App {
 
       return this.getPresenceState()[personId]?.isHome ?? false;
     });
+  }
+
+  private async getPersonAutocompleteResults(query: string): Promise<Array<{ name: string; id: string }>> {
+    const normalizedQuery = (query || '').toLowerCase();
+
+    return this.getPeople()
+      .filter((person) => person.name.toLowerCase().includes(normalizedQuery))
+      .map((person) => ({
+        name: person.name,
+        id: person.id,
+      }));
+  }
+
+  private getFlowPersonId(personArg: string | { id?: string } | undefined): string | null {
+    if (!personArg) {
+      return null;
+    }
+
+    return typeof personArg === 'string'
+      ? personArg
+      : personArg.id || null;
+  }
+
+  private async shouldRunPersonFilteredTrigger(
+    personArg: string | { id?: string } | undefined,
+    triggeredPersonId: string | undefined,
+  ): Promise<boolean> {
+    const selectedPersonId = this.getFlowPersonId(personArg);
+
+    if (!selectedPersonId) {
+      return true;
+    }
+
+    if (!triggeredPersonId) {
+      return false;
+    }
+
+    return selectedPersonId === triggeredPersonId;
   }
 
   private ensureSettingsShape() {
