@@ -70,10 +70,10 @@
       border: 1px solid var(--line);
       border-radius: 9px;
       padding: 7px 9px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 8px;
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 4px 8px;
+      align-items: start;
       background: #fff;
     }
 
@@ -82,6 +82,12 @@
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
+    }
+
+    .row-meta {
+      grid-column: 1 / span 2;
+      color: var(--muted);
+      font-size: 11px;
     }
 
     .status {
@@ -134,7 +140,7 @@
       const homeCount = state?.summary?.homeCount || 0;
       const awayCount = state?.summary?.awayCount || 0;
 
-      summary.textContent = `${homeCount} home • ${awayCount} away`;
+      summary.textContent = `${homeCount} home - ${awayCount} away`;
       list.innerHTML = '';
 
       if (!people.length) {
@@ -145,12 +151,46 @@
       for (const person of people) {
         const row = document.createElement('div');
         row.className = 'row';
+        const activity = formatRelativeTime(person.lastActivityAt);
+        const staleText = Array.isArray(person.staleDeviceNames) && person.staleDeviceNames.length
+          ? ` | stale: ${person.staleDeviceNames.join(', ')}`
+          : '';
+
         row.innerHTML = `
           <span class="name">${escapeHtml(person.name)}</span>
           <span class="status ${person.isHome ? 'home' : 'away'}">${person.isHome ? 'Home' : 'Away'}</span>
+          <span class="row-meta">Last activity: ${activity}${escapeHtml(staleText)}</span>
         `;
         list.appendChild(row);
       }
+    }
+
+    function formatRelativeTime(iso) {
+      if (!iso) {
+        return 'unknown';
+      }
+
+      const then = Date.parse(iso);
+      if (Number.isNaN(then)) {
+        return 'unknown';
+      }
+
+      const diffMs = Date.now() - then;
+      const minutes = Math.max(0, Math.floor(diffMs / 60000));
+      if (minutes < 1) {
+        return 'just now';
+      }
+      if (minutes < 60) {
+        return `${minutes}m ago`;
+      }
+
+      const hours = Math.floor(minutes / 60);
+      if (hours < 24) {
+        return `${hours}h ago`;
+      }
+
+      const days = Math.floor(hours / 24);
+      return `${days}d ago`;
     }
 
     function escapeHtml(value) {
@@ -172,13 +212,13 @@
             render();
           });
 
-          Homey.ready({ height: 120 });
+          Homey.ready({ height: 140 });
         })
         .catch(async (error) => {
           state = { people: [], summary: { homeCount: 0, awayCount: 0 } };
           render();
           await Homey.alert(error.message || String(error));
-          Homey.ready({ height: 120 });
+          Homey.ready({ height: 140 });
         });
     }
   </script>

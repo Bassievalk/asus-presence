@@ -150,6 +150,26 @@
       color: var(--warn);
     }
 
+    .pill.access-ok {
+      background: var(--ok-soft);
+      color: var(--ok);
+    }
+
+    .pill.access-waiting {
+      background: #eceff4;
+      color: #5b6470;
+    }
+
+    .pill.access-error {
+      background: var(--warn-soft);
+      color: var(--warn);
+    }
+
+    .pill.access-paused {
+      background: #eceff4;
+      color: #5b6470;
+    }
+
     .people {
       display: grid;
       gap: 12px;
@@ -224,6 +244,41 @@
       background: #eceff4;
       color: #5b6470;
     }
+
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(9, 26, 46, 0.45);
+      display: grid;
+      place-items: center;
+      z-index: 1000;
+      padding: 14px;
+    }
+
+    .modal-backdrop[hidden] {
+      display: none !important;
+    }
+
+    .modal {
+      width: min(460px, 100%);
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 14px;
+      box-shadow: 0 16px 40px rgba(6, 26, 46, 0.24);
+      display: grid;
+      gap: 10px;
+    }
+
+    .modal h3 {
+      margin: 0;
+      font-size: 16px;
+    }
+
+    .modal .body {
+      display: grid;
+      gap: 10px;
+    }
   </style>
 </head>
 <body>
@@ -235,6 +290,7 @@
       <div class="summary">
         <span class="pill home" id="homeCount">Home: 0</span>
         <span class="pill away" id="awayCount">Away: 0</span>
+        <span class="pill access-waiting" id="accessStatus">Router access: waiting</span>
         <span class="muted" id="pollInfo">No polling data yet.</span>
       </div>
     </section>
@@ -259,11 +315,16 @@
           <input id="timeoutMs" type="number" min="2000" max="60000" />
         </label>
         <label>
+          Inactivity threshold (minutes)
+          <input id="inactivityThresholdMinutes" type="number" min="0" max="1440" />
+        </label>
+        <label>
           Auth mode
           <select id="authMode">
             <option value="none">No auth</option>
             <option value="basic">Basic auth</option>
             <option value="bearer">Bearer token</option>
+            <option value="merlin">Merlin session login</option>
           </select>
         </label>
         <label>
@@ -301,6 +362,7 @@
 
       <div class="row" style="margin-top: 12px;">
         <button class="primary" id="saveConfig">Save config</button>
+        <button class="ghost" id="togglePause">Pause polling</button>
         <button class="ghost" id="refreshNow">Refresh now</button>
       </div>
     </section>
@@ -308,16 +370,31 @@
     <section class="panel">
       <div class="row" style="justify-content: space-between;">
         <h2 style="margin: 0;">People & Devices</h2>
-        <button class="primary" id="addPerson">Add person</button>
+        <div class="row">
+          <input id="newPersonName" placeholder="New person name" />
+          <button class="primary" id="addPerson">Add person</button>
+        </div>
       </div>
       <div class="people" id="people"></div>
     </section>
+  </div>
+
+  <div id="modalBackdrop" class="modal-backdrop" hidden>
+    <div class="modal">
+      <h3 id="modalTitle"></h3>
+      <div id="modalBody" class="body"></div>
+      <div class="row" style="justify-content: flex-end;">
+        <button id="modalCancel" class="ghost">Cancel</button>
+        <button id="modalConfirm" class="primary">Save</button>
+      </div>
+    </div>
   </div>
 
   <script type="text/javascript" src="/homey.js" data-origin="settings"></script>
   <script>
     let overview = null;
     let busy = false;
+    let lastAccessState = 'waiting';
 
     function setBusy(nextBusy) {
       busy = nextBusy;
@@ -351,6 +428,7 @@
       document.getElementById('awayCount').textContent = `Away: ${summary.awayCount}`;
 
       const poll = overview?.poll || {};
+      const accessStatus = document.getElementById('accessStatus');
       const pollText = poll.lastPollError
         ? `Last poll error: ${poll.lastPollError}`
         : poll.lastPollAt
@@ -358,6 +436,44 @@
           : 'No polling data yet.';
 
       document.getElementById('pollInfo').textContent = pollText;
+
+      const baseUrl = overview?.router?.baseUrl || '';
+      let accessState = 'waiting';
+      let accessLabel = 'Router access: waiting';
+
+      if (overview?.router?.paused) {
+        accessState = 'paused';
+        accessLabel = 'Router access: paused';
+      } else if (!baseUrl) {
+        accessState = 'waiting';
+        accessLabel = 'Router access: not configured';
+      } else if (poll.lastPollError) {
+        accessState = 'error';
+        accessLabel = 'Router access: failed';
+      } else if (poll.lastPollAt) {
+        accessState = 'ok';
+        accessLabel = 'Router access: confirmed';
+      }
+
+      accessStatus.classList.remove('access-ok', 'access-waiting', 'access-error', 'access-paused');
+      let accessClass = 'access-waiting';
+      if (accessState === 'ok') {
+        accessClass = 'access-ok';
+      } else if (accessState === 'error') {
+        accessClass = 'access-error';
+      } else if (accessState === 'paused') {
+        accessClass = 'access-paused';
+      }
+      accessStatus.classList.add(accessClass);
+      accessStatus.textContent = accessLabel;
+
+      lastAccessState = accessState;
+    }
+
+    function updatePauseButton() {
+      const button = document.getElementById('togglePause');
+      const paused = Boolean(overview?.router?.paused);
+      button.textContent = paused ? 'Resume polling' : 'Pause polling';
     }
 
     function renderPeople() {
@@ -437,6 +553,7 @@
       document.getElementById('clientsEndpoint').value = cfg.clientsEndpoint || '';
       document.getElementById('pollIntervalSeconds').value = cfg.pollIntervalSeconds || 30;
       document.getElementById('timeoutMs').value = cfg.timeoutMs || 10000;
+      document.getElementById('inactivityThresholdMinutes').value = cfg.inactivityThresholdMinutes ?? 180;
       document.getElementById('authMode').value = cfg.authMode || 'none';
       document.getElementById('username').value = cfg.username || '';
       document.getElementById('password').value = cfg.password || '';
@@ -451,6 +568,7 @@
       updateSummary();
       renderPeople();
       fillConfig();
+      updatePauseButton();
     }
 
     function escapeHtml(value) {
@@ -475,6 +593,7 @@
           clientsEndpoint: document.getElementById('clientsEndpoint').value,
           pollIntervalSeconds: Number(document.getElementById('pollIntervalSeconds').value || 30),
           timeoutMs: Number(document.getElementById('timeoutMs').value || 10000),
+          inactivityThresholdMinutes: Number(document.getElementById('inactivityThresholdMinutes').value || 180),
           authMode: document.getElementById('authMode').value,
           username: document.getElementById('username').value,
           password: document.getElementById('password').value,
@@ -504,15 +623,13 @@
       }
     }
 
-    async function addPerson() {
-      const name = prompt('Person name');
-      if (!name) {
-        return;
-      }
-
+    async function togglePause() {
       setBusy(true);
       try {
-        overview = await homeyApi('POST', '/person', { name });
+        const paused = Boolean(overview?.router?.paused);
+        overview = await homeyApi('PUT', '/config', {
+          paused: !paused,
+        });
         render();
       } catch (error) {
         await Homey.alert(error.message || String(error));
@@ -521,13 +638,174 @@
       }
     }
 
+    async function addPerson() {
+      const input = document.getElementById('newPersonName');
+      const name = String(input.value || '').trim();
+      if (!name) {
+        await Homey.alert('Please enter a person name first.');
+        return;
+      }
+
+      setBusy(true);
+      try {
+        overview = await homeyApi('POST', '/person', { name });
+        input.value = '';
+        render();
+      } catch (error) {
+        await Homey.alert(error.message || String(error));
+      } finally {
+        setBusy(false);
+      }
+    }
+
+    function openModal(options) {
+      return new Promise((resolve) => {
+        const backdrop = document.getElementById('modalBackdrop');
+        const titleEl = document.getElementById('modalTitle');
+        const bodyEl = document.getElementById('modalBody');
+        const cancelEl = document.getElementById('modalCancel');
+        const confirmEl = document.getElementById('modalConfirm');
+
+        titleEl.textContent = options.title || '';
+        bodyEl.innerHTML = '';
+        confirmEl.textContent = options.confirmLabel || 'Save';
+        cancelEl.textContent = options.cancelLabel || 'Cancel';
+        options.render(bodyEl);
+
+        let closed = false;
+        function cleanup() {
+          if (closed) {
+            return;
+          }
+          closed = true;
+          backdrop.hidden = true;
+          cancelEl.removeEventListener('click', onCancel);
+          confirmEl.removeEventListener('click', onConfirm);
+          backdrop.removeEventListener('click', onBackdropClick);
+        }
+
+        function onCancel() {
+          cleanup();
+          resolve({ confirmed: false });
+        }
+
+        function onConfirm() {
+          const result = options.getValue ? options.getValue() : null;
+          if (result && result.__invalid) {
+            return;
+          }
+          cleanup();
+          resolve({ confirmed: true, value: result });
+        }
+
+        function onBackdropClick(event) {
+          if (event.target === backdrop) {
+            onCancel();
+          }
+        }
+
+        cancelEl.addEventListener('click', onCancel);
+        confirmEl.addEventListener('click', onConfirm);
+        backdrop.addEventListener('click', onBackdropClick);
+        backdrop.hidden = false;
+      });
+    }
+
+    async function openTextInputModal(title, label, initialValue, confirmLabel) {
+      let inputEl = null;
+      const result = await openModal({
+        title,
+        confirmLabel: confirmLabel || 'Save',
+        render(bodyEl) {
+          const labelEl = document.createElement('label');
+          labelEl.textContent = label;
+          inputEl = document.createElement('input');
+          inputEl.value = initialValue || '';
+          labelEl.appendChild(inputEl);
+          bodyEl.appendChild(labelEl);
+          setTimeout(() => inputEl.focus(), 0);
+        },
+        getValue() {
+          const value = String(inputEl.value || '').trim();
+          if (!value) {
+            inputEl.focus();
+            return { __invalid: true };
+          }
+          return value;
+        },
+      });
+
+      if (!result.confirmed) {
+        return null;
+      }
+
+      return result.value;
+    }
+
+    async function openDeviceModal(title, initialName, initialMac, confirmLabel) {
+      let nameEl = null;
+      let macEl = null;
+
+      const result = await openModal({
+        title,
+        confirmLabel: confirmLabel || 'Save',
+        render(bodyEl) {
+          const nameLabel = document.createElement('label');
+          nameLabel.textContent = 'Device name';
+          nameEl = document.createElement('input');
+          nameEl.value = initialName || '';
+          nameLabel.appendChild(nameEl);
+          bodyEl.appendChild(nameLabel);
+
+          const macLabel = document.createElement('label');
+          macLabel.textContent = 'MAC address';
+          macEl = document.createElement('input');
+          macEl.placeholder = 'AA:BB:CC:DD:EE:FF';
+          macEl.value = initialMac || '';
+          macLabel.appendChild(macEl);
+          bodyEl.appendChild(macLabel);
+          setTimeout(() => nameEl.focus(), 0);
+        },
+        getValue() {
+          const name = String(nameEl.value || '').trim();
+          const mac = String(macEl.value || '').trim();
+          if (!mac) {
+            macEl.focus();
+            return { __invalid: true };
+          }
+          return { name, mac };
+        },
+      });
+
+      if (!result.confirmed) {
+        return null;
+      }
+
+      return result.value;
+    }
+
+    async function openConfirmModal(title, message, confirmLabel) {
+      const result = await openModal({
+        title,
+        confirmLabel: confirmLabel || 'Delete',
+        render(bodyEl) {
+          const text = document.createElement('div');
+          text.className = 'muted';
+          text.textContent = message;
+          bodyEl.appendChild(text);
+        },
+      });
+
+      return result.confirmed;
+    }
+
     async function renamePerson(personId) {
       const person = (overview.people || []).find((item) => item.id === personId);
       if (!person) {
         return;
       }
 
-      const name = prompt('New name', person.name);
+      const name = await openTextInputModal('Rename person', 'Name', person.name, 'Save');
       if (!name) {
         return;
       }
@@ -544,7 +822,11 @@
     }
 
     async function deletePerson(personId) {
-      const ok = confirm('Delete this person and all linked devices?');
+      const ok = await openConfirmModal(
+        'Delete person',
+        'Delete this person and all linked devices?',
+        'Delete',
+      );
       if (!ok) {
         return;
       }
@@ -561,16 +843,18 @@
     }
 
     async function addDevice(personId) {
-      const name = prompt('Device name (optional)');
-      const mac = prompt('MAC address (example: AA:BB:CC:DD:EE:FF)');
-
-      if (!mac) {
+      const values = await openDeviceModal('Add device', '', '', 'Add');
+      if (!values) {
         return;
       }
 
       setBusy(true);
       try {
-        overview = await homeyApi('POST', '/device', { personId, name: name || '', mac });
+        overview = await homeyApi('POST', '/device', {
+          personId,
+          name: values.name || '',
+          mac: values.mac,
+        });
         render();
       } catch (error) {
         await Homey.alert(error.message || String(error));
@@ -586,13 +870,8 @@
         return;
       }
 
-      const name = prompt('Device name', device.name);
-      if (!name) {
-        return;
-      }
-
-      const mac = prompt('MAC address', device.mac);
-      if (!mac) {
+      const values = await openDeviceModal('Edit device', device.name, device.mac, 'Save');
+      if (!values) {
         return;
       }
 
@@ -601,8 +880,8 @@
         overview = await homeyApi('PUT', '/device', {
           personId,
           id: deviceId,
-          name,
-          mac,
+          name: values.name,
+          mac: values.mac,
           enabled: device.enabled,
         });
         render();
@@ -636,7 +915,11 @@
     }
 
     async function deleteDevice(personId, deviceId) {
-      const ok = confirm('Delete this device?');
+      const ok = await openConfirmModal(
+        'Delete device',
+        'Delete this device?',
+        'Delete',
+      );
       if (!ok) {
         return;
       }
@@ -654,8 +937,15 @@
 
     function attachHandlers() {
       document.getElementById('saveConfig').addEventListener('click', saveConfig);
+      document.getElementById('togglePause').addEventListener('click', togglePause);
       document.getElementById('refreshNow').addEventListener('click', refreshNow);
       document.getElementById('addPerson').addEventListener('click', addPerson);
+      document.getElementById('newPersonName').addEventListener('keydown', (event) => {
+        if (event.key === 'Enter') {
+          event.preventDefault();
+          addPerson();
+        }
+      });
 
       document.getElementById('people').addEventListener('click', (event) => {
         const button = event.target.closest('button[data-action]');
@@ -684,6 +974,7 @@
     }
 
     async function init() {
+      document.getElementById('modalBackdrop').hidden = true;
       attachHandlers();
       await reloadOverview();
 

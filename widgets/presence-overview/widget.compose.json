@@ -1,0 +1,13 @@
+{
+  "name": {
+    "en": "ASUS Presence Overview"
+  },
+  "height": 188,
+  "settings": [],
+  "api": {
+    "getStatus": {
+      "method": "GET",
+      "path": "/status"
+    }
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "title": {
+    "en": "A monitored person left home"
+  },
+  "tokens": [
+    {
+      "name": "person",
+      "type": "string",
+      "title": {
+        "en": "Person"
+      }
+    }
+  ]
+}

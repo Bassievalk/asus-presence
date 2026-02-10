@@ -1,0 +1,14 @@
+{
+  "title": {
+    "en": "[[person]] is home"
+  },
+  "args": [
+    {
+      "name": "person",
+      "type": "autocomplete",
+      "title": {
+        "en": "Person"
+      }
+    }
+  ]
+}

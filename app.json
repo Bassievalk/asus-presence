@@ -31,12 +31,116 @@
     "name": "Bas Valk",
     "email": "basvalk03@gmail.com"
   },
-  "widgets": [
-    {
-      "id": "presence-overview",
+  "api": {
+    "getOverview": {
+      "method": "GET",
+      "path": "/overview"
+    },
+    "putConfig": {
+      "method": "PUT",
+      "path": "/config"
+    },
+    "postPerson": {
+      "method": "POST",
+      "path": "/person"
+    },
+    "putPerson": {
+      "method": "PUT",
+      "path": "/person"
+    },
+    "deletePerson": {
+      "method": "DELETE",
+      "path": "/person"
+    },
+    "postDevice": {
+      "method": "POST",
+      "path": "/device"
+    },
+    "putDevice": {
+      "method": "PUT",
+      "path": "/device"
+    },
+    "deleteDevice": {
+      "method": "DELETE",
+      "path": "/device"
+    },
+    "postRefresh": {
+      "method": "POST",
+      "path": "/refresh"
+    }
+  },
+  "flow": {
+    "triggers": [
+      {
+        "title": {
+          "en": "A monitored person came home"
+        },
+        "tokens": [
+          {
+            "name": "person",
+            "type": "string",
+            "title": {
+              "en": "Person"
+            }
+          },
+          {
+            "name": "devices",
+            "type": "string",
+            "title": {
+              "en": "Online devices"
+            }
+          }
+        ],
+        "id": "person_came_home"
+      },
+      {
+        "title": {
+          "en": "A monitored person left home"
+        },
+        "tokens": [
+          {
+            "name": "person",
+            "type": "string",
+            "title": {
+              "en": "Person"
+            }
+          }
+        ],
+        "id": "person_left_home"
+      }
+    ],
+    "conditions": [
+      {
+        "title": {
+          "en": "[[person]] is home"
+        },
+        "args": [
+          {
+            "name": "person",
+            "type": "autocomplete",
+            "title": {
+              "en": "Person"
+            }
+          }
+        ],
+        "id": "person_is_home"
+      }
+    ]
+  },
+  "widgets": {
+    "presence-overview": {
       "name": {
         "en": "ASUS Presence Overview"
-      }
+      },
+      "height": 188,
+      "settings": [],
+      "api": {
+        "getStatus": {
+          "method": "GET",
+          "path": "/status"
+        }
+      },
+      "id": "presence-overview"
     }
-  ]
+  }
 }

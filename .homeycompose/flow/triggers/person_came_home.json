@@ -1,0 +1,21 @@
+{
+  "title": {
+    "en": "A monitored person came home"
+  },
+  "tokens": [
+    {
+      "name": "person",
+      "type": "string",
+      "title": {
+        "en": "Person"
+      }
+    },
+    {
+      "name": "devices",
+      "type": "string",
+      "title": {
+        "en": "Online devices"
+      }
+    }
+  ]
+}
