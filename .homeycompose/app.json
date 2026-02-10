@@ -4,6 +4,8 @@
   "compatibility": ">=12.4.0",
   "sdk": 3,
   "support": "https://github.com/Bassievalk/asus-presence/issues",
+  "brandColor": "#0B4AA2",
+  "connectivity": ["lan"],
   "platforms": [
     "local"
   ],
