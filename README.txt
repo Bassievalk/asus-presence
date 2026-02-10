@@ -1,0 +1,2 @@
+Use your ASUS router to monitor wich residents are home/away. Can be used to control more advanced flows based on presence of households where not everyone has the Homey app. 
+Feel free to give feedback or submit issues. 
