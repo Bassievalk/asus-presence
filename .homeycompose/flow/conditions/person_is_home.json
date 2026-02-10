@@ -2,6 +2,9 @@
   "title": {
     "en": "[[person]] is home"
   },
+  "titleFormatted": {
+    "en": "[[person]] is home"
+  },
   "args": [
     {
       "name": "person",

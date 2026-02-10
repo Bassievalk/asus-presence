@@ -2,7 +2,7 @@
   "name": {
     "en": "ASUS Presence Overview"
   },
-  "height": 188,
+  "height": 320,
   "settings": [],
   "api": {
     "getStatus": {

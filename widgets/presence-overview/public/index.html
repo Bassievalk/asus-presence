@@ -127,10 +127,20 @@
   <script type="text/javascript" src="/homey.js" data-origin="widget"></script>
   <script type="text/javascript">
     let state = null;
+    let homeyReadyCalled = false;
 
     async function fetchStatus() {
       state = await Homey.api('GET', '/status');
       render();
+    }
+
+    function updateWidgetHeight() {
+      const people = state?.people || [];
+      const target = Math.min(620, Math.max(180, 84 + people.length * 56));
+
+      if (homeyReadyCalled) {
+        Homey.setHeight(target).catch(() => {});
+      }
     }
 
     function render() {
@@ -145,6 +155,7 @@
 
       if (!people.length) {
         list.innerHTML = '<div class="empty">No people configured yet.</div>';
+        updateWidgetHeight();
         return;
       }
 
@@ -163,6 +174,8 @@
         `;
         list.appendChild(row);
       }
+
+      updateWidgetHeight();
     }
 
     function formatRelativeTime(iso) {
@@ -212,13 +225,15 @@
             render();
           });
 
-          Homey.ready({ height: 140 });
+          homeyReadyCalled = true;
+          Homey.ready({ height: 220 });
         })
         .catch(async (error) => {
           state = { people: [], summary: { homeCount: 0, awayCount: 0 } };
           render();
           await Homey.alert(error.message || String(error));
-          Homey.ready({ height: 140 });
+          homeyReadyCalled = true;
+          Homey.ready({ height: 220 });
         });
     }
   </script>
