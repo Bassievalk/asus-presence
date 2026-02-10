@@ -11,6 +11,16 @@ Track presence (home/away) in Homey based on connected clients on an ASUS router
 - Optionally writes events to the Homey Timeline.
 - Shows a Homey widget with current presence and expandable device details.
 
+## Widget Previews
+
+Light mode:
+
+![ASUS Presence widget light preview](widgets/presence-overview/preview-light.png)
+
+Dark mode:
+
+![ASUS Presence widget dark preview](widgets/presence-overview/preview-dark.png)
+
 ## Disclaimer
 - By default there can only be 1 client logged in at a time into the ASUS portal, so you have to "Pause polling" in order to log-in succesfully.
 
