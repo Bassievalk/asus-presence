@@ -144,6 +144,8 @@ module.exports = class AsusPresenceApp extends Homey.App {
 
   private conditionPersonIsHome: FlowConditionCard | null = null;
 
+  private conditionPersonIsAway: FlowConditionCard | null = null;
+
   private merlinSessionCookie: string | null = null;
 
   private merlinSessionFingerprint: string | null = null;
@@ -469,6 +471,21 @@ module.exports = class AsusPresenceApp extends Homey.App {
       }
 
       return this.getPresenceState()[personId]?.isHome ?? false;
+    });
+
+    const awayConditionCard = this.homey.flow.getConditionCard('person_is_away') as unknown as FlowConditionCard;
+    this.conditionPersonIsAway = awayConditionCard;
+
+    awayConditionCard.registerArgumentAutocompleteListener('person', async (query: string) => this.getPersonAutocompleteResults(query));
+
+    awayConditionCard.registerRunListener(async (args: { person?: string | { id?: string } }) => {
+      const personId = this.getFlowPersonId(args?.person);
+
+      if (!personId) {
+        return false;
+      }
+
+      return !(this.getPresenceState()[personId]?.isHome ?? false);
     });
   }
 

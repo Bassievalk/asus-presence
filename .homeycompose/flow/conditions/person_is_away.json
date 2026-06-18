@@ -1,0 +1,17 @@
+{
+  "title": {
+    "en": "[[person]] is not home"
+  },
+  "titleFormatted": {
+    "en": "[[person]] is not home"
+  },
+  "args": [
+    {
+      "name": "person",
+      "type": "autocomplete",
+      "title": {
+        "en": "Person"
+      }
+    }
+  ]
+}

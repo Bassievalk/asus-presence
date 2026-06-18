@@ -216,8 +216,34 @@
   <script type="text/javascript">
     let state = null;
     let homeyReadyCalled = false;
+    let loadFailed = false;
     const expandedPeople = new Set();
     const FIXED_HEIGHT = 320;
+    const STORAGE_KEY = 'asus-presence-last-state';
+
+    function isUsableState(value) {
+      return Boolean(value && Array.isArray(value.people));
+    }
+
+    function loadCachedState() {
+      try {
+        const raw = window.localStorage.getItem(STORAGE_KEY);
+        return raw ? JSON.parse(raw) : null;
+      } catch (error) {
+        return null;
+      }
+    }
+
+    function saveCachedState(value) {
+      if (!isUsableState(value)) {
+        return;
+      }
+      try {
+        window.localStorage.setItem(STORAGE_KEY, JSON.stringify(value));
+      } catch (error) {
+        // Ignore storage failures (private mode, quota exceeded, etc.).
+      }
+    }
 
     function lockGestures() {
       document.addEventListener('gesturestart', (event) => event.preventDefault());
@@ -229,7 +255,12 @@
     }
 
     async function fetchStatus() {
-      state = await Homey.api('GET', '/status');
+      const next = await Homey.api('GET', '/status');
+      if (isUsableState(next)) {
+        state = next;
+        loadFailed = false;
+        saveCachedState(state);
+      }
       render();
     }
 
@@ -259,6 +290,29 @@
 
       const days = Math.floor(hours / 24);
       return `${days}d ago`;
+    }
+
+    function formatDuration(iso) {
+      const then = iso ? Date.parse(iso) : Number.NaN;
+      if (Number.isNaN(then)) {
+        return 'just now';
+      }
+
+      const minutes = Math.max(0, Math.floor((Date.now() - then) / 60000));
+      if (minutes < 1) {
+        return 'just now';
+      }
+      if (minutes < 60) {
+        return `${minutes}m`;
+      }
+
+      const hours = Math.floor(minutes / 60);
+      if (hours < 24) {
+        return `${hours}h`;
+      }
+
+      const days = Math.floor(hours / 24);
+      return `${days}d`;
     }
 
     function escapeHtml(value) {
@@ -314,20 +368,26 @@
       summary.textContent = `${homeCount} home - ${awayCount} away`;
       list.innerHTML = '';
 
-      if (!people.length) {
+      if (loadFailed) {
+        footer.hidden = false;
+        footer.textContent = 'Couldn’t refresh - showing last known status.';
+      } else {
         footer.hidden = true;
+      }
+
+      if (!people.length) {
         list.innerHTML = '<div class="empty">No people configured yet.</div>';
         return;
       }
-
-      footer.hidden = true;
 
       for (const person of people) {
         const expanded = expandedPeople.has(person.id);
         const row = document.createElement('div');
         row.className = 'row';
         row.dataset.personId = person.id;
-        const activity = formatRelativeTime(person.lastActivityAt);
+        const presenceText = person.isHome
+          ? `Seen for: ${formatDuration(person.changedAt)}`
+          : `Last seen: ${formatRelativeTime(person.lastActivityAt)}`;
         const staleText = Array.isArray(person.staleDeviceNames) && person.staleDeviceNames.length
           ? ` | stale: ${person.staleDeviceNames.join(', ')}`
           : '';
@@ -335,7 +395,7 @@
         row.innerHTML = `
           <span class="row-title">${escapeHtml(person.name)}</span>
           <span class="status ${person.isHome ? 'home' : 'away'}">${person.isHome ? 'Home' : 'Away'}</span>
-          <span class="row-meta">Last activity: ${activity}${escapeHtml(staleText)}</span>
+          <span class="row-meta">${presenceText}${escapeHtml(staleText)}</span>
           ${expanded ? renderDevices(person) : ''}
         `;
         row.addEventListener('click', () => {
@@ -354,21 +414,34 @@
       window.Homey = HomeyInstance;
       lockGestures();
 
-      fetchStatus()
-        .then(() => {
-          Homey.on('presence_update', (payload) => {
-            state = payload;
-            render();
-          });
+      // Render the last known status immediately so the widget always shows something,
+      // even before (or if) the live fetch fails.
+      const cached = loadCachedState();
+      if (cached) {
+        state = cached;
+        render();
+      }
 
-          homeyReadyCalled = true;
-          Homey.ready({ height: FIXED_HEIGHT });
-          Homey.setHeight(FIXED_HEIGHT).catch(() => {});
-        })
-        .catch(async (error) => {
-          state = { people: [], summary: { homeCount: 0, awayCount: 0 } };
+      Homey.on('presence_update', (payload) => {
+        if (isUsableState(payload)) {
+          state = payload;
+          loadFailed = false;
+          saveCachedState(state);
           render();
-          await Homey.alert(error.message || String(error));
+        }
+      });
+
+      fetchStatus()
+        .catch(() => {
+          // Keep whatever we already have (cached or live) instead of blanking the widget.
+          if (isUsableState(state)) {
+            loadFailed = true;
+          } else {
+            state = { people: [], summary: { homeCount: 0, awayCount: 0 } };
+          }
+          render();
+        })
+        .finally(() => {
           homeyReadyCalled = true;
           Homey.ready({ height: FIXED_HEIGHT });
           Homey.setHeight(FIXED_HEIGHT).catch(() => {});
