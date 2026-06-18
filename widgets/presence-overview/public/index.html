@@ -385,9 +385,13 @@
         const row = document.createElement('div');
         row.className = 'row';
         row.dataset.personId = person.id;
-        const presenceText = person.isHome
-          ? `Seen for: ${formatDuration(person.changedAt)}`
-          : `Last seen: ${formatRelativeTime(person.lastActivityAt)}`;
+        let presenceText;
+        if (person.isHome) {
+          const duration = formatDuration(person.changedAt);
+          presenceText = duration === 'just now' ? `Seen: ${duration}` : `Seen for: ${duration}`;
+        } else {
+          presenceText = `Last seen: ${formatRelativeTime(person.lastActivityAt)}`;
+        }
         const staleText = Array.isArray(person.staleDeviceNames) && person.staleDeviceNames.length
           ? ` | stale: ${person.staleDeviceNames.join(', ')}`
           : '';
