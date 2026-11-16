@@ -1,0 +1,16 @@
+{
+  "type": "number",
+  "title": {
+    "en": "Presence",
+    "nl": "Aanwezigheid"
+  },
+  "getable": true,
+  "setable": false,
+  "insights": true,
+  "uiComponent": "sensor",
+  "icon": "/drivers/person/assets/icon.svg",
+  "min": 0,
+  "max": 1,
+  "step": 1,
+  "decimals": 0
+}

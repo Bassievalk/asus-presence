@@ -8,6 +8,10 @@
     "getStatus": {
       "method": "GET",
       "path": "/status"
+    },
+    "postRestore": {
+      "method": "POST",
+      "path": "/restore"
     }
   }
 }

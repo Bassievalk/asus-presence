@@ -1,0 +1,9 @@
+/.github/
+/.eslintrc.json
+/README.md
+/CODE_OF_CONDUCT.md
+/CONTRIBUTING.md
+/env.json
+*.map
+*.tsbuildinfo
+.DS_Store

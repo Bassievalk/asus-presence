@@ -484,7 +484,13 @@
       const container = document.getElementById('people');
       container.innerHTML = '';
 
-      const people = overview?.people || [];
+      // Home first, then away; A-Z within each group.
+      const people = (overview?.people || []).slice().sort((a, b) => {
+        if (Boolean(a.isHome) !== Boolean(b.isHome)) {
+          return a.isHome ? -1 : 1;
+        }
+        return String(a.name || '').localeCompare(String(b.name || ''), undefined, { sensitivity: 'base', numeric: true });
+      });
       if (!people.length) {
         container.innerHTML = '<p class="muted">No people yet. Add someone and then add one or more device MAC addresses.</p>';
         return;

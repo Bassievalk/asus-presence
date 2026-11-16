@@ -1,0 +1,52 @@
+{
+  "name": {
+    "en": "Person",
+    "nl": "Persoon"
+  },
+  "class": "other",
+  "platforms": [
+    "local"
+  ],
+  "connectivity": [
+    "lan"
+  ],
+  "capabilities": [
+    "onoff",
+    "presence"
+  ],
+  "capabilitiesOptions": {
+    "onoff": {
+      "title": {
+        "en": "Home",
+        "nl": "Thuis"
+      },
+      "setable": false,
+      "insightsTitleTrue": {
+        "en": "Came home",
+        "nl": "Thuisgekomen"
+      },
+      "insightsTitleFalse": {
+        "en": "Left home",
+        "nl": "Vertrokken"
+      }
+    }
+  },
+  "images": {
+    "small": "/drivers/person/assets/images/small.png",
+    "large": "/drivers/person/assets/images/large.png",
+    "xlarge": "/drivers/person/assets/images/xlarge.png"
+  },
+  "pair": [
+    {
+      "id": "list_devices",
+      "template": "list_devices",
+      "navigation": {
+        "next": "add_devices"
+      }
+    },
+    {
+      "id": "add_devices",
+      "template": "add_devices"
+    }
+  ]
+}

@@ -6,4 +6,9 @@ module.exports = {
     return homey.app.getOverview();
   },
 
+  async postRestore({ homey, body }) {
+    await homey.app.restoreFromSnapshot(body);
+    return homey.app.getOverview();
+  },
+
 };

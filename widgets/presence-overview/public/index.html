@@ -194,6 +194,23 @@
       font-size: 11px;
     }
 
+    .restore-btn {
+      margin-top: 6px;
+      width: 100%;
+      border: 0;
+      border-radius: 8px;
+      padding: 8px;
+      font: inherit;
+      font-weight: 700;
+      background: #0B4AA2;
+      color: #fff;
+      cursor: pointer;
+    }
+
+    .restore-btn:disabled {
+      opacity: 0.6;
+    }
+
     .empty {
       padding: 14px;
       text-align: center;
@@ -220,6 +237,58 @@
     const expandedPeople = new Set();
     const FIXED_HEIGHT = 320;
     const STORAGE_KEY = 'asus-presence-last-state';
+    // Set when the app returns no people but this widget still holds a saved copy that has people.
+    let restoreCandidate = null;
+    let restoreBusy = false;
+    let restoreError = '';
+
+    function hasPeople(value) {
+      return isUsableState(value) && value.people.length > 0;
+    }
+
+    // Accept a new state from the app, but never let an empty app state wipe a saved copy with people.
+    function acceptState(next) {
+      if (!isUsableState(next)) {
+        return;
+      }
+
+      const cached = loadCachedState();
+      if (!hasPeople(next) && hasPeople(cached)) {
+        restoreCandidate = cached;
+        state = cached;
+        loadFailed = false;
+        return;
+      }
+
+      restoreCandidate = null;
+      state = next;
+      loadFailed = false;
+      saveCachedState(state);
+    }
+
+    async function restoreFromCache() {
+      if (!restoreCandidate || restoreBusy) {
+        return;
+      }
+
+      restoreBusy = true;
+      restoreError = '';
+      render();
+
+      try {
+        const next = await Homey.api('POST', '/restore', restoreCandidate);
+        restoreCandidate = null;
+        if (isUsableState(next)) {
+          state = next;
+          saveCachedState(state);
+        }
+      } catch (error) {
+        restoreError = (error && error.message) ? error.message : String(error);
+      } finally {
+        restoreBusy = false;
+        render();
+      }
+    }
 
     function isUsableState(value) {
       return Boolean(value && Array.isArray(value.people));
@@ -256,11 +325,7 @@
 
     async function fetchStatus() {
       const next = await Homey.api('GET', '/status');
-      if (isUsableState(next)) {
-        state = next;
-        loadFailed = false;
-        saveCachedState(state);
-      }
+      acceptState(next);
       render();
     }
 
@@ -361,14 +426,34 @@
       const list = document.getElementById('list');
       const summary = document.getElementById('summary');
       const footer = document.getElementById('footer');
-      const people = state?.people || [];
+      // Home first, then away; A-Z within each group.
+      const people = (state?.people || []).slice().sort((a, b) => {
+        if (Boolean(a.isHome) !== Boolean(b.isHome)) {
+          return a.isHome ? -1 : 1;
+        }
+        return String(a.name || '').localeCompare(String(b.name || ''), undefined, { sensitivity: 'base', numeric: true });
+      });
       const homeCount = state?.summary?.homeCount || 0;
       const awayCount = state?.summary?.awayCount || 0;
 
       summary.textContent = `${homeCount} home - ${awayCount} away`;
       list.innerHTML = '';
 
-      if (loadFailed) {
+      if (restoreCandidate) {
+        footer.hidden = false;
+        const count = restoreCandidate.people.length;
+        footer.innerHTML = `
+          <div>De app heeft geen personen meer. Deze widget heeft nog een kopie van ${count} ${count === 1 ? 'persoon' : 'personen'}.</div>
+          ${restoreError ? `<div>Herstellen mislukt: ${escapeHtml(restoreError)}</div>` : ''}
+          <button class="restore-btn" id="restore-btn" ${restoreBusy ? 'disabled' : ''}>
+            ${restoreBusy ? 'Bezig met herstellen…' : `Herstel ${count} ${count === 1 ? 'persoon' : 'personen'} + routerinstellingen`}
+          </button>
+        `;
+        document.getElementById('restore-btn').addEventListener('click', (event) => {
+          event.stopPropagation();
+          restoreFromCache();
+        });
+      } else if (loadFailed) {
         footer.hidden = false;
         footer.textContent = 'Couldn’t refresh - showing last known status.';
       } else {
@@ -428,9 +513,7 @@
 
       Homey.on('presence_update', (payload) => {
         if (isUsableState(payload)) {
-          state = payload;
-          loadFailed = false;
-          saveCachedState(state);
+          acceptState(payload);
           render();
         }
       });

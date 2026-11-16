@@ -10,5 +10,17 @@
   },
   "2.2.0": {
     "en": "Added required README.txt"
+  },
+  "2.3.0": {
+    "en": "Residents are sorted home first, then away (A-Z). New Person device per resident: on when home, off when away, with insights.",
+    "nl": "Bewoners worden gesorteerd op thuis en daarna afwezig (A-Z). Nieuw Persoon-apparaat per bewoner: aan bij thuis, uit bij afwezig, met insights."
+  },
+  "2.3.1": {
+    "en": "Widget can restore residents and router settings from its saved copy when the app has none. Widget no longer overwrites its saved copy with an empty list.",
+    "nl": "De widget kan bewoners en routerinstellingen herstellen uit zijn opgeslagen kopie als de app er geen heeft. De widget overschrijft zijn kopie niet meer met een lege lijst."
+  },
+  "2.4.0": {
+    "en": "Person devices get an Insights tab with 'Presence' (1 = home, 0 = away), logged on every change and every 15 minutes.",
+    "nl": "Persoon-apparaten krijgen een Insights-tab met 'Aanwezigheid' (1 = thuis, 0 = afwezig), vastgelegd bij elke verandering en elke 15 minuten."
   }
 }

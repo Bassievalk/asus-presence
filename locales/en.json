@@ -1,1 +1,6 @@
-{}
+{
+  "device": {
+    "read_only": "Presence is detected by the router and cannot be switched manually.",
+    "person_removed": "This person no longer exists in the ASUS Presence settings."
+  }
+}

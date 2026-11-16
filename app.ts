@@ -103,6 +103,10 @@ interface FlowTriggerCard {
   ): FlowTriggerCard;
 }
 
+interface PersonPresenceDevice {
+  syncPresence(): Promise<void>;
+}
+
 interface FlowConditionCard {
   registerArgumentAutocompleteListener(
     name: string,
@@ -314,6 +318,7 @@ module.exports = class AsusPresenceApp extends Homey.App {
     }
 
     this.emitPresenceUpdate();
+    await this.syncPersonDevices();
   }
 
   public async createDevice(personId: string, name: string, mac: string): Promise<PersonDevice> {
@@ -396,6 +401,56 @@ module.exports = class AsusPresenceApp extends Homey.App {
     await this.recalculateFromLatestClients();
   }
 
+  /**
+   * Restore people (and optionally router config) from an overview snapshot,
+   * e.g. the copy a widget kept in its local storage. Only allowed while no
+   * people are configured, so it can never overwrite existing data.
+   */
+  public async restoreFromSnapshot(snapshot: unknown): Promise<{ restoredPeople: number }> {
+    if (this.getPeople().length > 0) {
+      throw new Error('Restore is only possible while no people are configured.');
+    }
+
+    const record = (snapshot && typeof snapshot === 'object' ? snapshot : {}) as {
+      people?: unknown;
+      router?: unknown;
+    };
+
+    const rawPeople = Array.isArray(record.people) ? record.people as Array<Record<string, unknown>> : [];
+    const people: Person[] = rawPeople
+      .filter((item) => item && typeof item === 'object')
+      .map((item) => ({
+        id: typeof item.id === 'string' && item.id ? item.id : randomUUID(),
+        name: this.cleanText(item.name, 80) || 'Unnamed person',
+        devices: (Array.isArray(item.devices) ? item.devices as Array<Record<string, unknown>> : [])
+          .filter((device) => device && typeof device === 'object')
+          .map((device) => ({
+            id: typeof device.id === 'string' && device.id ? device.id : randomUUID(),
+            name: this.cleanText(device.name, 80) || 'Unnamed device',
+            mac: this.safeNormalizeMac(String(device.mac ?? '')),
+            enabled: device.enabled !== false,
+          }))
+          .filter((device) => Boolean(device.mac)),
+      }));
+
+    if (!people.length) {
+      throw new Error('The snapshot does not contain any people.');
+    }
+
+    this.persistPeople(people);
+    this.log(`Restored ${people.length} people from snapshot.`);
+
+    const currentRouter = this.getRouterConfig();
+    if (!currentRouter.baseUrl && record.router && typeof record.router === 'object') {
+      // setRouterConfig also reschedules polling and polls immediately.
+      await this.setRouterConfig(record.router as Partial<RouterConfig>);
+    } else {
+      await this.recalculateFromLatestClients();
+    }
+
+    return { restoredPeople: people.length };
+  }
+
   public async refreshNow() {
     await this.pollRouterAndUpdate(true);
     return this.getOverview();
@@ -427,6 +482,15 @@ module.exports = class AsusPresenceApp extends Homey.App {
         staleDeviceIds: personState.staleDeviceIds,
         staleDeviceNames: personState.staleDeviceNames,
       };
+    });
+
+    // Home first, then away; alphabetical (A-Z) within each group.
+    peopleWithPresence.sort((a, b) => {
+      if (a.isHome !== b.isHome) {
+        return a.isHome ? -1 : 1;
+      }
+
+      return a.name.localeCompare(b.name, undefined, { sensitivity: 'base', numeric: true });
     });
 
     const homeCount = peopleWithPresence.filter((person) => person.isHome).length;
@@ -711,6 +775,42 @@ module.exports = class AsusPresenceApp extends Homey.App {
 
     this.homey.settings.set(SETTINGS_KEYS.presenceState, nextState);
     this.emitPresenceUpdate();
+    await this.syncPersonDevices();
+  }
+
+  /**
+   * Returns whether a person is home, or null when the person no longer exists.
+   */
+  public getPersonPresence(personId: string): boolean | null {
+    const exists = this.getPeople().some((person) => person.id === personId);
+    if (!exists) {
+      return null;
+    }
+
+    return this.getPresenceState()[personId]?.isHome ?? false;
+  }
+
+  /**
+   * Push the current presence state to every paired "person" device.
+   */
+  private async syncPersonDevices() {
+    let devices: PersonPresenceDevice[];
+
+    try {
+      devices = this.homey.drivers.getDriver('person').getDevices() as unknown as PersonPresenceDevice[];
+    } catch (error) {
+      // Driver not initialised yet (e.g. during app start-up); devices sync themselves on init.
+      return;
+    }
+
+    for (const device of devices) {
+      try {
+        await device.syncPresence();
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        this.error('Failed to sync person device:', message);
+      }
+    }
   }
 
   private async handlePresenceChange(person: Person, state: PresenceStateEntry) {
